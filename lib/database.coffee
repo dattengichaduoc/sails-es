@@ -39,20 +39,29 @@ module.exports = {
 				f_query = "get"
 		else
 			unless options.limit
-				query.body.size = 50
+				query.body.size = 200
+				
 			unless options.skip
 				query.body.from = 0
+			# query.q = "_class:#{options.where._class}"
+			
+			query.bool = {
+				must: []
+				must_not: []
+				should: []
+			}
 
 			f_query = "search"
+			### BUILD QUERY  ####
 
-		debug "QUERY", f_query, query
+		# debug "QUERY", f_query, query
 
 		##### QUERY #####
 		client[f_query] query
 		.then (results)->
-			debug f_query, query, results
+			# debug f_query, query, results
 			if results._source
-				return cb null, results._source
+				return cb null, [results._source]
 
 			if results.docs
 				docs = _.map results.docs, (d)->
