@@ -15,7 +15,6 @@ module.exports = {
 		f_query = undefined
 
 		if options.limit
-			query.body = {}
 			query.body.size = options.limit
 
 		if options.skip
@@ -38,28 +37,55 @@ module.exports = {
 				delete query.body
 				f_query = "get"
 		else
+			
 			unless options.limit
-				query.body.size = 200
-				
+				query.body.size = 50
 			unless options.skip
 				query.body.from = 0
 			# query.q = "_class:#{options.where._class}"
 			
-			query.bool = {
-				must: []
-				must_not: []
-				should: []
+			# if options.where 
+
+			debug "TRACE".red, JSON.stringify options, null, 2
+
+			match_query = []
+			type_query = "must"
+
+			bool_check = {
+				must: false
+				must_not: false
+				should: false
 			}
 
+			for key, value of options.where
+				console.log key,value
+				switch key
+					when "or"
+						debug.error "NOT SUPPORT `or` NOW"
+					when "like"
+						debug.error "NOT SUPPORT `like` NOW"
+					else
+						match_query.push { "#{key}" : value }
+						unless bool_check.must
+							query.body.query = {}
+							query.body.query.bool = {}
+							query.body.query.bool["must"] = []
+							query.body.query.bool["must"].push match_query
+						else
+							query.body.query.bool["must"].push match_query
+						console.log JSON.stringify(query, null, 2)
 			f_query = "search"
+
+
 			### BUILD QUERY  ####
 
 		# debug "QUERY", f_query, query
 
 		##### QUERY #####
+		debug JSON.stringify(f_query, null,2), JSON.stringify(query,null,2)
 		client[f_query] query
 		.then (results)->
-			# debug f_query, query, results
+			debug JSON.stringify(f_query, null,2), JSON.stringify(query,null,2), JSON.stringify(results, null, 2)
 			if results._source
 				return cb null, [results._source]
 
@@ -74,5 +100,6 @@ module.exports = {
 				return cb null, docs
 
 		.catch (errors)->
+			console.log errors.toString()
 			cb errors.toString()
 }
