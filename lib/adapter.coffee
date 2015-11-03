@@ -193,17 +193,20 @@ module.exports = do ->
 				else
 					async.eachLimit results, 1,(data, done)->
 						async.each options.joins, (relation, next)->
-							if relation.childKey is "id"
+							if relation.childKey is "id" or relation.parentKey is "id"
 								if relation.collection
-									sails.models[relation.child].find().where({"_#{coll}": data.id})
+									sails.models[relation.child].find().where
+										match:
+											"#{relation.childKey}": data.id
 									.then (list)->
-										data["_#{relation.child}"] = list
+										data["#{relation.alias}"] = list
 										next null
 								else
-									if data["_#{relation.child}"]
-										sails.models[relation.child].find(data["_#{relation.child}"])
+									if data["#{relation.alias}"]
+										sails.models[relation.child].find
+											id: data["#{relation.alias}"]
 										.then (node)->
-											data["_#{relation.child}"] = node
+											data["#{relation.alias}"] = node
 											next null
 									else
 										next null
