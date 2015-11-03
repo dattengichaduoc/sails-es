@@ -103,8 +103,8 @@ module.exports = do ->
 							fn_CreateIndex next
 						(next)->
 							fn_DropCollection next
-						(next)->
-							fn_PutMapping next                          
+						#(next)->
+							#fn_PutMapping next
 					], (errors)->
 						if errors
 							debug.error "STARTING ERROR".red.bold , JSON.stringify(errors, null, 2)
@@ -230,7 +230,6 @@ module.exports = do ->
 			unless values.id
 				values.id = uuid.v1()
 
-
 			async.waterfall [
 				(next)->
 					client.create
@@ -273,25 +272,29 @@ module.exports = do ->
 		############ UPDATE ##############
 		##################################
 		update: (conn, coll, options, values, cb) ->
-
-			#debug "update".warn.bold, conn, coll, options, values
+			
+			unless options.where.id
+				return cb null
+				
+			debug "update".warn.bold, conn, coll, options, values
 			
 			client = connections[conn]
 			values.updatedAt = new Date()
-			options = 
+			__options = 
 				index: client.options.index
 				type: coll
 				id: values.id
 				body:
 					doc: values
-			# debug "UPDATE NOW", options
-			client.update options
-			.then (results)->
-				# debug "UPDATE", results
+			debug "UPDATE NOW", __options
+			client.update __options
+			.then((results)->
+				debug "UPDATE", results
 				cb null
-			.catch (errors)->
-				# debug "UPDATE ERRORS", errors
-				cb results
+			).catch((errors)->
+				debug "UPDATE ERRORS", errors
+				cb errors
+			)
 
 		##################################
 		############ DESTROY #############
