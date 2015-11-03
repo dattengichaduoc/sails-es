@@ -1,7 +1,7 @@
 require "colors"
 elasticsearch = require "elasticsearch"
-debug = require("debug")("WATERLINE-SAILS-ES")
-debug.error = require("debug")("WATERLINE-SAILS-ES-ERROR")
+#debug = require("debug")("WATERLINE-SAILS-ES")
+#debug.error = require("debug")("WATERLINE-SAILS-ES-ERROR")
 async = require "async"
 _ = require "lodash"
 uuid = require "node-uuid"
@@ -46,7 +46,7 @@ module.exports = {
 			
 			# if options.where 
 
-			debug "TRACE".red, JSON.stringify options, null, 2
+			#debug "TRACE".red, JSON.stringify options, null, 2
 
 			match_query = []
 			type_query = "must"
@@ -61,9 +61,9 @@ module.exports = {
 				console.log key,value
 				switch key
 					when "or"
-						debug.error "NOT SUPPORT `or` NOW"
+						console.log "NOT SUPPORT `or` NOW"
 					when "like"
-						debug.error "NOT SUPPORT `like` NOW"
+						console.log "NOT SUPPORT `like` NOW"
 					else
 						match_query.push { "#{key}" : value }
 						unless bool_check.must
@@ -79,13 +79,13 @@ module.exports = {
 
 			### BUILD QUERY  ####
 
-		# debug "QUERY", f_query, query
+		 #debug "QUERY", f_query, query
 
 		##### QUERY #####
-		debug JSON.stringify(f_query, null,2), JSON.stringify(query,null,2)
+		#debug JSON.stringify(f_query, null,2), JSON.stringify(query,null,2)
 		client[f_query] query
 		.then (results)->
-			debug JSON.stringify(f_query, null,2), JSON.stringify(query,null,2), JSON.stringify(results, null, 2)
+			#debug JSON.stringify(f_query, null,2), JSON.stringify(query,null,2), JSON.stringify(results, null, 2)
 			if results._source
 				return cb null, [results._source]
 
@@ -100,6 +100,6 @@ module.exports = {
 				return cb null, docs
 
 		.catch (errors)->
-			console.log errors.toString()
+			#console.log errors.toString()
 			cb errors.toString()
 }

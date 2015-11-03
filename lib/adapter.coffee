@@ -24,7 +24,7 @@ module.exports = do ->
 		##################################
 
 		registerConnection: (connection, colls, cb) ->
-			debug "registerConnection".warn.bold
+			#debug "registerConnection".warn.bold
 			typies = []
 			for k, v of colls
 				typies.push 
@@ -119,7 +119,7 @@ module.exports = do ->
 		############ TEAR DOWN ###########
 		##################################
 		teardown: (conn, cb) ->
-			debug "teardown".warn.bold, conn, "DISCONNECTED ELASTICSEARCH".cyan.bold
+			#debug "teardown".warn.bold, conn, "DISCONNECTED ELASTICSEARCH".cyan.bold
 			if typeof conn is "function"
 				cb = conn
 				conn = null
@@ -136,14 +136,14 @@ module.exports = do ->
 		############ DESCRIBE ############
 		##################################
 		describe: (conn, coll, cb) ->
-			debug "describe".warn.bold, conn, coll
+			#debug "describe".warn.bold, conn, coll
 			cb()
 
 		##################################
 		############ DEFINE   ############
 		##################################
 		define: (conn, coll, definition, cb) ->
-			debug "define".warn.bold, conn, coll, definition
+			#debug "define".warn.bold, conn, coll, definition
 			cb()
 
 		##################################
@@ -151,7 +151,7 @@ module.exports = do ->
 		##################################
 		drop: (conn, coll, relations, cb) ->
 
-			debug "drop".warn.bold, conn, coll, relations
+			#debug "drop".warn.bold, conn, coll, relations
 
 			client = connections[conn]
 
@@ -176,7 +176,7 @@ module.exports = do ->
 		##################################
 		find: (conn, coll, options, cb) ->
 
-			debug "find".warn.bold, conn, coll, JSON.stringify(options, null, 2)
+			#debug "find".warn.bold, conn, coll, JSON.stringify(options, null, 2)
 
 			database.find connections, conn, coll, options, cb
 		
@@ -185,7 +185,7 @@ module.exports = do ->
 		##################################
 		join: (conn, coll, options, cb)->
 
-			debug "join".warn.bold, conn, coll, JSON.stringify(options, null, 2)
+			#debug "join".warn.bold, conn, coll, JSON.stringify(options, null, 2)
 
 			database.find connections, conn, coll, options, (errors, results)->
 				if errors
@@ -223,7 +223,7 @@ module.exports = do ->
 		##################################
 		create: (conn, coll, values, cb) ->
 
-			debug "create".warn.bold, conn, coll, values
+			#debug "create".warn.bold, conn, coll, values
 			
 			client = connections[conn]
 
@@ -274,7 +274,8 @@ module.exports = do ->
 		##################################
 		update: (conn, coll, options, values, cb) ->
 
-			debug "update".warn.bold, conn, coll, options, values
+			#debug "update".warn.bold, conn, coll, options, values
+			
 			client = connections[conn]
 			values.updatedAt = new Date()
 			options = 
@@ -297,7 +298,7 @@ module.exports = do ->
 		##################################
 		##################################
 		destroy: (conn, coll, options, cb) ->
-			debug "destroy".warn.bold, conn, coll, options
+			#debug "destroy".warn.bold, conn, coll, options
 			cb()
 	adapter
 
