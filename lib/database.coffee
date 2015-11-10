@@ -65,7 +65,12 @@ module.exports = {
 					when "like"
 						console.log "NOT SUPPORT `like` NOW"
 					else
-						match_query.push { "#{key}" : value }
+						try
+							JSON.parse(value)
+							match_query.push { "#{key}" : JSON.parse(value) }
+						catch e
+							match_query.push { "#{key}" : value }
+
 						unless bool_check.must
 							query.body.query = {}
 							query.body.query.bool = {}
