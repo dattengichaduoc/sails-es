@@ -35,6 +35,5 @@
       "queryable"
     ],
     "waterlineVersion": "~0.10.0"
-  },
-  "private": true
+  }
 }
