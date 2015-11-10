@@ -1,7 +1,7 @@
 require "colors"
 elasticsearch = require "elasticsearch"
-#debug = require("debug")("WATERLINE-SAILS-ES")
-#debug.error = require("debug")("WATERLINE-SAILS-ES-ERROR")
+debug = require("debug")("WATERLINE-SAILS-ES")
+debug.error = require("debug")("WATERLINE-SAILS-ES-ERROR")
 async = require "async"
 _ = require "lodash"
 uuid = require "node-uuid"
@@ -58,7 +58,7 @@ module.exports = {
 			}
 
 			for key, value of options.where
-				console.log key,value
+				debug key,value
 				switch key
 					when "or"
 						console.log "NOT SUPPORT `or` NOW"
@@ -73,7 +73,7 @@ module.exports = {
 							query.body.query.bool["must"].push match_query
 						else
 							query.body.query.bool["must"].push match_query
-						console.log JSON.stringify(query, null, 2)
+						debug JSON.stringify(query, null, 2)
 			f_query = "search"
 
 
