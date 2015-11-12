@@ -1,6 +1,6 @@
 {
   "name": "waterline-sails-es",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "description": "sails-es adapter for Sails / Waterline",
   "main": "./lib/adapter.coffee",
   "keywords": [

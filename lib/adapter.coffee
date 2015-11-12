@@ -132,6 +132,49 @@ module.exports = do ->
 			cb()
 			return
 
+		count: (conn, coll, options, cb)->
+			debug conn, coll, options
+
+			#define connection
+			client = connections[conn]
+			option = {}
+			option.index = client.options.index
+			option.type = coll
+			option.body ={}
+			option.body.query = {}
+			option.body.query.bool = {}
+			match_query = {}
+			type_query = "must"
+			bool_check = {
+				must: false
+				must_not: false
+				should: false
+			}
+			for key, value of options.where
+				debug key,value
+				switch key
+					when "or"
+						console.log "NOT SUPPORT `or` NOW"
+					when "like"
+						console.log "NOT SUPPORT `like` NOW"
+					else
+						try
+							JSON.parse(value)
+							match_query = { "#{key}" : JSON.parse(value) }
+						catch e
+							match_query = { "#{key}" : value }
+
+						unless bool_check.must
+							option.body.query.bool["must"] = []
+							option.body.query.bool["must"].push match_query
+						else
+							option.body.query.bool["must"].push match_query
+						debug JSON.stringify(option, null, 2)
+			f_query = "count"
+			client[f_query] option
+			.then (results)->
+				cb null, results.count
+				
 		##################################
 		############ DESCRIBE ############
 		##################################

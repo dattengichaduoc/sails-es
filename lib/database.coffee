@@ -7,6 +7,7 @@ _ = require "lodash"
 uuid = require "node-uuid"
 module.exports = {
 	find : (connections, conn, coll, options, cb)->
+		debug coll, options
 		client = connections[conn]
 		query = new Object()
 		query.index = client.options.index
@@ -67,9 +68,9 @@ module.exports = {
 					else
 						try
 							JSON.parse(value)
-							match_query.push { "#{key}" : JSON.parse(value) }
+							match_query = { "#{key}" : JSON.parse(value) }
 						catch e
-							match_query.push { "#{key}" : value }
+							match_query = { "#{key}" : value }
 
 						unless bool_check.must
 							query.body.query = {}
