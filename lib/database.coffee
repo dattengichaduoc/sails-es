@@ -21,14 +21,22 @@ module.exports = {
 		if options.skip
 			query.body.from = options.skip
 
+
 		if options.sort
 			query.sort = []
 			for k, v of options.sort
+				try
+					sortObject = JSON.parse(k)
+					options.sort = sortObject
+				catch e
+					options.sort = options.sort
+			for k, v of options.sort
 				t = "asc"
-				if v is -1
+				if parseInt(v) is -1
 					t = "desc"
 				query.sort.push "#{k}:#{t}"
 
+				
 		if options.where and options.where.id
 			if typeof options.where.id is "object"
 				query.body.ids = options.where.id
