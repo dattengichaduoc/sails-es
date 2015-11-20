@@ -57,32 +57,110 @@ module.exports = {
 				must_not: false
 				should: false
 			}
-
-			for key, value of options.where
-				debug key,value
+			
+			_must = {}
+			_must_not = {}
+			_should = {}
+			
+			fn_query_refilter = (key,value)->
+				debug "---", key, value
+				data = []
 				switch key
-					when "or"
-						console.log "NOT SUPPORT `or` NOW"
-					when "like"
-						console.log "NOT SUPPORT `like` NOW"
+					when "match"
+						for k,v of value
+							data.push {
+								match: 
+									"#{k}": v
+							}
+					when "range"
+						for k,v of value
+							data.push {
+								range: 
+									"#{k}": v
+							}
+					when "query_string"
+						for k,v of value
+							data.push {
+								query_string: 
+									"default_field": k
+									"query": v
+							}
+					when "temp"
+						for k,v of value
+							data.push {
+								temp: 
+									"#{k}": v
+							}
+					when "prefix"
+						for k,v of value
+							data.push {
+								prefix: 
+									"#{k}": v
+							}
+					when "wildcard"
+						for k,v of value
+							data.push {
+								wildcard: 
+									"#{k}": v
+							}
+					when "must"
+						values = []
+						for k, v of value
+							values = values.concat fn_query_refilter(k, v)
+						data = {
+							must: values
+						}
+					when "must_not"
+						values = []
+						for k, v of value
+							values = values.concat fn_query_refilter(k, v)
+						data = {
+							must_not: values
+						}
+					when "should"
+						values = []
+						for k, v of value
+							values = values.concat fn_query_refilter(k, v)
+						data = {
+							should: values
+						}
+					else 
+						return {}
+				debug "filter", data
+				return data
+			
+			_filters = []
+			
+			filterGroups = _.forEach options.where, (value, key)->
+				switch key
+					when "must"
+						for k, v of value
+							_must = fn_query_refilter(key,value)
+					when "must_not"
+						for k, v of value
+							_must_not = fn_query_refilter(key,value)
+					when "should"
+						for k, v of value
+							_should = fn_query_refilter(key,value)
 					else
-						try
-							JSON.parse(value)
-							match_query = { "#{key}" : JSON.parse(value) }
-						catch e
-							match_query = { "#{key}" : value }
-
-						unless bool_check.must
-							query.body.query = {}
-							query.body.query.bool = {}
-							query.body.query.bool["must"] = []
-							query.body.query.bool["must"].push match_query
-						else
-							query.body.query.bool["must"].push match_query
-						debug JSON.stringify(query, null, 2)
+						_filters = _filters.concat(fn_query_refilter(key,value))
+				return
+				
+			query.body.query = {}
+			
+			query.body.query.bool = {}
+			
+			if _must.must
+				query.body.query.bool.must = _must.must
+			if _must_not.must_not
+				query.body.query.bool.must_not = _must_not.must_not
+			if _should.should
+				query.body.query.bool.should = _should.should
+			if _filters.length > 0
+				query.body.query.bool.must = _filters
+				
 			f_query = "search"
-
-
+			
 			### BUILD QUERY  ####
 
 		 #debug "QUERY", f_query, query
