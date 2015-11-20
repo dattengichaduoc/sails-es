@@ -63,7 +63,6 @@ module.exports = {
 			_should = {}
 			
 			fn_query_refilter = (key,value)->
-				debug "---", key, value
 				data = []
 				switch key
 					when "match"
@@ -132,6 +131,11 @@ module.exports = {
 			_filters = []
 			
 			filterGroups = _.forEach options.where, (value, key)->
+				try
+					value = JSON.parse value
+				catch e
+					value = value
+				
 				switch key
 					when "must"
 						for k, v of value
