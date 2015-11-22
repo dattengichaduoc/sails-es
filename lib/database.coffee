@@ -133,7 +133,6 @@ module.exports = {
 						}
 					else 
 						return {}
-				debug "filter", data
 				return data
 			
 			_filters = []
@@ -146,14 +145,45 @@ module.exports = {
 				
 				switch key
 					when "must"
-						for k, v of value
-							_must = fn_query_refilter(key,value)
+						parses = {}
+						unless Array.isArray(value)
+							value = [value]
+						for p in value
+							try
+								p = JSON.parse p
+								parses[_.keys(p)[0]] = p[_.keys(p)[0]]
+								
+							catch
+								parses[_.keys(p)[0]] = p[_.keys(p)[0]]
+						value = parses
+						_must = fn_query_refilter(key,value)
+						
 					when "must_not"
-						for k, v of value
-							_must_not = fn_query_refilter(key,value)
+						parses = {}
+						unless Array.isArray(value)
+							value = [value]	
+						for p in value
+							try
+								p = JSON.parse p
+								parses[_.keys(p)[0]] = p[_.keys(p)[0]]
+								
+							catch
+								parses[_.keys(p)[0]] = p[_.keys(p)[0]]
+						value = parses
+						_must_not = fn_query_refilter(key,value)
 					when "should"
-						for k, v of value
-							_should = fn_query_refilter(key,value)
+						parses = {}
+						unless Array.isArray(value)
+							value = [value]	
+						for p in value
+							try
+								p = JSON.parse p
+								parses[_.keys(p)[0]] = p[_.keys(p)[0]]
+								
+							catch
+								parses[_.keys(p)[0]] = p[_.keys(p)[0]]
+						value = parses
+						_should = fn_query_refilter(key,value)
 					else
 						_filters = _filters.concat(fn_query_refilter(key,value))
 				return
@@ -174,11 +204,15 @@ module.exports = {
 			f_query = "search"
 			
 			### BUILD QUERY  ####
-
+#
 		 #debug "QUERY", f_query, query
+		 #debug "MUST", _must
+		 #debug "MUST NOT", _must_not
+		 #debug "SHOULD", _should
 
 		##### QUERY #####
 		#debug JSON.stringify(f_query, null,2), JSON.stringify(query,null,2)
+		# debug "FIND BUILD", query
 		client[f_query] query
 		.then (results)->
 			#debug JSON.stringify(f_query, null,2), JSON.stringify(query,null,2), JSON.stringify(results, null, 2)

@@ -133,7 +133,7 @@ module.exports = do ->
 			return
 
 		count: (conn, coll, options, cb)->
-			debug conn, coll, options
+			debug "count", conn, coll, options
 
 			#define connection
 			client = connections[conn]
@@ -150,30 +150,151 @@ module.exports = do ->
 				must_not: false
 				should: false
 			}
-			for key, value of options.where
-				debug key,value
+			
+			_must = {}
+			_must_not = {}
+			_should = {}
+			
+			fn_query_refilter = (key,value)->
+				data = []
 				switch key
-					when "or"
-						console.log "NOT SUPPORT `or` NOW"
-					when "like"
-						console.log "NOT SUPPORT `like` NOW"
+					when "match"
+						for k,v of value
+							data.push {
+								match: 
+									"#{k}": v
+							}
+					when "range"
+						for k,v of value
+							data.push {
+								range: 
+									"#{k}": v
+							}
+					when "query_string"
+						for k,v of value
+							data.push {
+								query_string: 
+									"default_field": k
+									"query": v
+							}
+					when "temp"
+						for k,v of value
+							data.push {
+								temp: 
+									"#{k}": v
+							}
+					when "prefix"
+						for k,v of value
+							data.push {
+								prefix: 
+									"#{k}": v
+							}
+					when "wildcard"
+						for k,v of value
+							data.push {
+								wildcard: 
+									"#{k}": v
+							}
+					when "must"
+						values = []
+						for k, v of value
+							values = values.concat fn_query_refilter(k, v)
+						data = {
+							must: values
+						}
+					when "must_not"
+						values = []
+						for k, v of value
+							values = values.concat fn_query_refilter(k, v)
+						data = {
+							must_not: values
+						}
+					when "should"
+						values = []
+						for k, v of value
+							values = values.concat fn_query_refilter(k, v)
+						data = {
+							should: values
+						}
+					else 
+						return {}
+				return data
+			
+			_filters = []
+			
+			filterGroups = _.forEach options.where, (value, key)->
+				try
+					value = JSON.parse value
+				catch e
+					value = value
+				
+				switch key
+					when "must"
+						parses = {}
+						unless Array.isArray(value)
+							value = [value]
+						for p in value
+							try
+								p = JSON.parse p
+								parses[_.keys(p)[0]] = p[_.keys(p)[0]]
+								
+							catch
+								parses[_.keys(p)[0]] = p[_.keys(p)[0]]
+						value = parses
+						_must = fn_query_refilter(key,value)
+						
+					when "must_not"
+						parses = {}
+						unless Array.isArray(value)
+							value = [value]	
+						for p in value
+							try
+								p = JSON.parse p
+								parses[_.keys(p)[0]] = p[_.keys(p)[0]]
+								
+							catch
+								parses[_.keys(p)[0]] = p[_.keys(p)[0]]
+						value = parses
+						_must_not = fn_query_refilter(key,value)
+					when "should"
+						parses = {}
+						unless Array.isArray(value)
+							value = [value]	
+						for p in value
+							try
+								p = JSON.parse p
+								parses[_.keys(p)[0]] = p[_.keys(p)[0]]
+								
+							catch
+								parses[_.keys(p)[0]] = p[_.keys(p)[0]]
+						value = parses
+						_should = fn_query_refilter(key,value)
 					else
-						try
-							JSON.parse(value)
-							match_query = { "#{key}" : JSON.parse(value) }
-						catch e
-							match_query = { "#{key}" : value }
-
-						unless bool_check.must
-							option.body.query.bool["must"] = []
-							option.body.query.bool["must"].push match_query
-						else
-							option.body.query.bool["must"].push match_query
-						debug JSON.stringify(option, null, 2)
+						_filters = _filters.concat(fn_query_refilter(key,value))
+				return
+				
+			option.body.query = {}
+			
+			option.body.query.bool = {}
+			
+			if _must.must
+				option.body.query.bool.must = _must.must
+			if _must_not.must_not
+				option.body.query.bool.must_not = _must_not.must_not
+			if _should.should
+				option.body.query.bool.should = _should.should
+			if _filters.length > 0
+				option.body.query.bool.must = _filters
+				
 			f_query = "count"
+			debug "COUNT BUILD", option
 			client[f_query] option
 			.then (results)->
+				debug "COUNT", results
 				cb null, results.count
+			.catch (e)->
+				debug "COUNT", results
+				
 				
 		##################################
 		############ DESCRIBE ############
