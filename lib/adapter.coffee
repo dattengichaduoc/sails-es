@@ -5,146 +5,61 @@ debug.error = require("debug")("WATERLINE-SAILS-ES-ERROR")
 async = require "async"
 _ = require "lodash"
 uuid = require "node-uuid"
-database = require "./database.coffee"
+module.exports = {
+	find : (connections, conn, coll, options, cb)->
+		debug coll, options
+		client = connections[conn]
+		query = new Object()
+		query.index = client.options.index
+		query.type = coll
+		query.body = {}
+		f_query = undefined
 
-module.exports = do ->
+		if options.limit
+			query.body.size = options.limit
 
-	connections = {}
-	adapter = 
-		identity : "waterline-sails-es"
-		syncable: false
-		pkFormat: "string"
-		defaults: {
-			host: "127.0.0.1"
-			port: "9200"
-		}
-
-		##################################
-		############ REGISTER ############
-		##################################
-
-		registerConnection: (connection, colls, cb) ->
-			#debug "registerConnection".warn.bold
-			typies = []
-			for k, v of colls
-				typies.push 
-					name : k
-					map: v._attributes
-					migrate: v.migrate
-
-			if !connection.identity
-				return cb(new Error("Connection is missing an identity."))
-			if connections[connection.identity]
-				return cb(new Error("Connection is already registered."))
-
-			connections[connection.identity] = new elasticsearch.Client connection
-
-			connections[connection.identity].ping {}, (e,results)->
-				connections[connection.identity].options = connection
-
-				if e
-					debug "-".red.bold, JSON.stringify(results, null, 2)
-				else
-					debug "OK".green.bold, "connected elasticsearch #{connection.host or connection.hosts[0]} !!!".green.bold
-					
-					client = connections[connection.identity]
-
-					debug "create index #{connection.index}"
-
-					fn_CreateIndex = (done)->
-						client.indices.create 
-							index: connection.index
-						.then (results)->
-							debug "created #{connection.index} ...", results
-							done null
-						.catch (error)->
-							debug "#{connection.index} already exists ..."
-							done null
-						
-					fn_DropCollection = (done)->
-						async.each typies, (type, next)->
-							if type.migrate is "drop"
-								colls[type.name].drop((error)->
-									next null
-								)
-							else
-								next null
-						,(errors)->
-							done errors
-
-					fn_PutMapping = (done)->
-						async.each typies, (type, next)->
-
-							for k, v of type.map
-								if v.collection or v.model
-									delete type.map[k]
-							option = 
-								index: connection.index
-								type: type.name
-								body: 
-									properties: type.map
-							# debug JSON.stringify option, null, 2
-							client.indices.putMapping option
-							.then (results)->
-								debug "mapping successfuly #{type.name.green.bold}", JSON.stringify results
-								next null
-							.catch (error)->
-								debug.error JSON.stringify(type.map, null,2) , JSON.stringify error, null, 2
-								next null
-						,(errors)->
-							if errors
-								debug.error JSON.stringify errors, null, 2
-								done errors
-							else 
-								debug "mapping all typies successfuly !"
-								done null
-					async.waterfall [
-						(next)->
-							fn_CreateIndex next
-						(next)->
-							fn_DropCollection next
-						#(next)->
-							#fn_PutMapping next
-					], (errors)->
-						if errors
-							debug.error "STARTING ERROR".red.bold , JSON.stringify(errors, null, 2)
-							cb errors
-						else
-							debug "Initialized adapter #{connection.adapter.green.bold}"
-							cb()
-			return
+		if options.skip
+			query.body.from = options.skip
 
 
-		##################################
-		############ TEAR DOWN ###########
-		##################################
-		teardown: (conn, cb) ->
-			#debug "teardown".warn.bold, conn, "DISCONNECTED ELASTICSEARCH".cyan.bold
-			if typeof conn is "function"
-				cb = conn
-				conn = null
-			if !conn
-				connections = {}
-				return cb()
-			if !connections[conn]
-				return cb()
-			delete connections[conn]
-			cb()
-			return
+		if options.sort
+			query.sort = []
+			for k, v of options.sort
+				try
+					sortObject = JSON.parse(k)
+					options.sort = sortObject
+				catch e
+					options.sort = options.sort
+			for k, v of options.sort
+				t = "asc"
+				if parseInt(v) is -1
+					t = "desc"
+				query.sort.push "#{k}:#{t}"
 
-		count: (conn, coll, options, cb)->
-			debug "count", conn, coll, options
+				
+		if options.where and options.where.id
+			if typeof options.where.id is "object"
+				query.body.ids = options.where.id
+				f_query = "mget"
+			else
+				query.id = options.where.id
+				delete query.body
+				f_query = "get"
+		else
+			
+			unless options.limit
+				query.body.size = 50
+			unless options.skip
+				query.body.from = 0
+			# query.q = "_class:#{options.where._class}"
+			
+			# if options.where 
 
-			#define connection
-			client = connections[conn]
-			option = {}
-			option.index = client.options.index
-			option.type = coll
-			option.body ={}
-			option.body.query = {}
-			option.body.query.bool = {}
-			match_query = {}
+			#debug "TRACE".red, JSON.stringify options, null, 2
+
+			match_query = []
 			type_query = "must"
+
 			bool_check = {
 				must: false
 				must_not: false
@@ -273,199 +188,55 @@ module.exports = do ->
 						_filters = _filters.concat(fn_query_refilter(key,value))
 				return
 				
-			option.body.query = {}
+			query.body.query = {}
 			
-			option.body.query.bool = {}
+			query.body.query.bool = {}
 			
 			if _must.must
-				option.body.query.bool.must = _must.must
+				query.body.query.bool.must = _must.must
 			if _must_not.must_not
-				option.body.query.bool.must_not = _must_not.must_not
+				query.body.query.bool.must_not = _must_not.must_not
 			if _should.should
-				option.body.query.bool.should = _should.should
+				query.body.query.bool.should = _should.should
 			if _filters.length > 0
-				option.body.query.bool.must = _filters
+				query.body.query.bool.must = _filters
 				
-			f_query = "count"
-			debug "COUNT BUILD", option
-			client[f_query] option
-			.then (results)->
-				debug "COUNT", results
-				cb null, results.count
-			.catch (e)->
-				debug "COUNT", results
-				
-				
-		##################################
-		############ DESCRIBE ############
-		##################################
-		describe: (conn, coll, cb) ->
-			#debug "describe".warn.bold, conn, coll
-			cb()
-
-		##################################
-		############ DEFINE   ############
-		##################################
-		define: (conn, coll, definition, cb) ->
-			#debug "define".warn.bold, conn, coll, definition
-			cb()
-
-		##################################
-		############ DROP     ############
-		##################################
-		drop: (conn, coll, relations, cb) ->
-
-			#debug "drop".warn.bold, conn, coll, relations
-
-			client = connections[conn]
-
-			client.search
-				index: client.options.index
-				type: coll
-				q: "*"
-			.then (results)->
-				async.eachLimit results.hits.hits, 10, (id, next)->
-					client.delete
-						index: client.options.index
-						type: coll
-						id: id._id
-					.then (results)->
-						next null
-					.catch next
-				, cb
-			.catch cb
-
-		##################################
-		############ FIND     ############
-		##################################
-		find: (conn, coll, options, cb) ->
-
-			#debug "find".warn.bold, conn, coll, JSON.stringify(options, null, 2)
-
-			database.find connections, conn, coll, options, cb
-		
-		##################################
-		############ DESTROY #############
-		##################################
-		join: (conn, coll, options, cb)->
-
-			#debug "join".warn.bold, conn, coll, JSON.stringify(options, null, 2)
-
-			database.find connections, conn, coll, options, (errors, results)->
-				if errors
-					cb errors
-				else
-					async.eachLimit results, 1,(data, done)->
-						async.each options.joins, (relation, next)->
-							if relation.childKey is "id" or relation.parentKey is "id"
-								if relation.collection
-									sails.models[relation.child].find().where
-										match:
-											"#{relation.childKey}": data.id
-									.then (list)->
-										data["#{relation.alias}"] = list
-										next null
-								else
-									if data["#{relation.alias}"]
-										sails.models[relation.child].find
-											id: data["#{relation.alias}"]
-										.then (node)->
-											data["#{relation.alias}"] = node
-											next null
-									else
-										next null
-							else
-								next null
-						,(errors)->
-							# debug.error JSON.stringify(results, null, 2)
-							done null
-					,(errors)->
-						cb null, results
+			f_query = "search"
 			
-		##################################
-		############ CREAT ###############      
-		##################################
-		create: (conn, coll, values, cb) ->
+			### BUILD QUERY  ####
+#
+		 #debug "QUERY", f_query, query
+		 #debug "MUST", _must
+		 #debug "MUST NOT", _must_not
+		 #debug "SHOULD", _should
 
-			#debug "create".warn.bold, conn, coll, values
+		##### QUERY #####
+		#debug JSON.stringify(f_query, null,2), JSON.stringify(query,null,2)
+		# debug "FIND BUILD", query
+		query.version = true
+		client[f_query] query
+		.then (results)->
+			#debug JSON.stringify(f_query, null,2), JSON.stringify(query,null,2), JSON.stringify(results, null, 2)
+			if results._source
+				_data = results._source
+				_data.counter = results._version
+				return cb null, data
 			
-			client = connections[conn]
+			else if results.docs
+				docs = _.map results.docs, (d)->
+					_data_do	= d._source
+					_data_doc.counter = d._version
+					_data_doc
+				return cb null,	docs
 
-			unless values.id
-				values.id = uuid.v1()
+			else if results.hits
+				docs = _.map results.hits.hits, (d)->
+					_data_doc	= d._source
+					_data_doc.counter	= d._version
+					_data_doc
+				return cb null,	docs
 
-			async.waterfall [
-				(next)->
-					client.create
-						id: values.id
-						index: client.options.index
-						type: coll
-						body: values
-					.then (results)->
-						next null, results
-					.catch (errors)->
-						next errors
-			],(errors, results)->
-				sails.models[coll].findOne results._id
-				.then (_results)->
-					async.eachLimit sails.models[coll].associations, 1, (ass, done)->
-						_results[ass.alias] = new Array()
-						if ass.type is "collection"
-							_results[ass.alias].add = (new_children)->
-								if typeof new_children is "object"
-									sails.models[ass.collection].create new_children
-									.then (___result)->
-										sails.models[ass.collection].findOne ___result.id
-									.then (____result)->
-										_results[ass.alias].push ____result
-								else
-									sails.models[ass.collection].findOne new_children
-									.then (___result)->
-										_results[ass.alias].push ___result
-							done null
-						else 
-							done null
-					,(__errors)->
-						cb null, _results
-				.catch (_errors)->
-					# debug.error "ERROR", "create::async.waterfall::.findOne", errors
-					cb _errors
-
-
-		##################################
-		############ UPDATE ##############
-		##################################
-		update: (conn, coll, options, values, cb) ->
-			
-			unless options.where.id
-				return cb null
-				
-			debug "update".warn.bold, conn, coll, options, values
-			
-			client = connections[conn]
-			values.updatedAt = new Date()
-			__options = 
-				index: client.options.index
-				type: coll
-				id: values.id
-				body:
-					doc: values
-			debug "UPDATE NOW", __options
-			client.update __options
-			.then((results)->
-				debug "UPDATE", results
-				cb null
-			).catch((errors)->
-				debug "UPDATE ERRORS", errors
-				cb errors
-			)
-
-		##################################
-		############ DESTROY #############
-		##################################
-		##################################
-		destroy: (conn, coll, options, cb) ->
-			#debug "destroy".warn.bold, conn, coll, options
-			cb()
-	adapter
-
+		.catch (errors)->
+			#console.log errors.toString()
+			cb errors.toString()
+}

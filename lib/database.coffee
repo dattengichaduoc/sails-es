@@ -213,21 +213,28 @@ module.exports = {
 		##### QUERY #####
 		#debug JSON.stringify(f_query, null,2), JSON.stringify(query,null,2)
 		# debug "FIND BUILD", query
+		query.version = true
 		client[f_query] query
 		.then (results)->
 			#debug JSON.stringify(f_query, null,2), JSON.stringify(query,null,2), JSON.stringify(results, null, 2)
 			if results._source
-				return cb null, [results._source]
-
-			if results.docs
+				_data = results._source
+				_data.counter = results._version
+				return cb null, data
+			
+			else if results.docs
 				docs = _.map results.docs, (d)->
-					d._source
+					_data_do	= d._source
+					_data_doc.counter = d._version
+					_data_doc
 				return cb null,	docs
 
-			if results.hits
+			else if results.hits
 				docs = _.map results.hits.hits, (d)->
-					d._source
-				return cb null, docs
+					_data_doc	= d._source
+					_data_doc.counter	= d._version
+					_data_doc
+				return cb null,	docs
 
 		.catch (errors)->
 			#console.log errors.toString()
